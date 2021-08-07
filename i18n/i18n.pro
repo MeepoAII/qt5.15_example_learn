@@ -23,5 +23,5 @@ TRANSLATIONS += translations/i18n_ar.ts \
                 translations/i18n_zh.ts
 
 # install
-target.path = $$[QT_INSTALL_EXAMPLES]/widgets/tools/i18n
+target.path = ./
 INSTALLS += target
