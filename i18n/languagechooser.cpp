@@ -71,9 +71,12 @@ LanguageChooser::LanguageChooser(const QString &defaultLang, QWidget *parent)
     for (int i = 0; i < qmFiles.size(); ++i) {
         const QString &qmlFile = qmFiles.at(i);
         QCheckBox *checkBox = new QCheckBox(languageName(qmlFile));
+        // 构建checkbox->qmFile的map，方便之后的调用
         qmFileForCheckBoxMap.insert(checkBox, qmlFile);
         connect(checkBox, &QCheckBox::toggled,
                 this, &LanguageChooser::checkBoxToggled);
+
+        // 在循环的同时，找到当前当前系统语言的那个CheckBox
         if (languageMatch(defaultLang, qmlFile))
             checkBox->setCheckState(Qt::Checked);
         groupBoxLayout->addWidget(checkBox, i / 2, i % 2);
@@ -97,6 +100,8 @@ LanguageChooser::LanguageChooser(const QString &defaultLang, QWidget *parent)
     setWindowTitle("I18N");
 }
 
+// defaultLang = "zh_CN"
+// qmFile = "i18n_ar.qm"
 bool LanguageChooser::languageMatch(const QString &lang, const QString &qmFile)
 {
     //qmFile: i18n_xx.qm
@@ -123,24 +128,36 @@ void LanguageChooser::closeEvent(QCloseEvent * /* event */)
     QCoreApplication::quit();
 }
 
+// 多个CheckBox绑定的这一个信号
 void LanguageChooser::checkBoxToggled()
 {
+    // sender()返回是谁调用的这个槽函数，然后强转为checkbox对象，
+    // 因为后面要知道是哪个一CheckBox才能取出对应的mainwindow和qmfile
     QCheckBox *checkBox = qobject_cast<QCheckBox *>(sender());
+
+    // 这里先到map里面去看之前有没有创建过
     MainWindow *window = mainWindowForCheckBoxMap.value(checkBox);
+    // 如果window为空，说明之前没有创建过，就进入if语句块
     if (!window) {
         QTranslator translator;
+        // 取出qmfile加载
         translator.load(qmFileForCheckBoxMap.value(checkBox));
+        // qApp 全局QCoreApplication指针，方便在main函数外拿到
         qApp->installTranslator(&translator);
 
         window = new MainWindow;
         window->setPalette(colorForLanguage(checkBox->text()));
 
         window->installEventFilter(this);
+
+        // mainWindow的地址放入map中，以免之后使用再继续创建
         mainWindowForCheckBoxMap.insert(checkBox, window);
     }
     window->setVisible(checkBox->isChecked());
 }
 
+// 下面两函数没有调用mainwindow的setvisible时因为有
+// 槽函数，只用把CheckBox选中即可
 void LanguageChooser::showAll()
 {
     for (auto it = qmFileForCheckBoxMap.keyBegin(); it != qmFileForCheckBoxMap.keyEnd(); ++it)
@@ -156,18 +173,22 @@ void LanguageChooser::hideAll()
 QStringList LanguageChooser::findQmFiles()
 {
     QDir dir(":/translations");
+    // 这里的QDir::Name是按照名字排序
     QStringList fileNames = dir.entryList(QStringList("*.qm"), QDir::Files,
                                           QDir::Name);
+
+    // 注意取引用出来，可以更改stringlist里面的值
     for (QString &fileName : fileNames)
         fileName = dir.filePath(fileName);
     return fileNames;
 }
 
+// 此函数返回语言名
 QString LanguageChooser::languageName(const QString &qmFile)
 {
     QTranslator translator;
     translator.load(qmFile);
-
+    // 相当于在mainwindow中把englist按照事先规定好的规则翻译成对应的字符串
     return translator.translate("MainWindow", "English");
 }
 
